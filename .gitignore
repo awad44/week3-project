@@ -1,20 +1,31 @@
-# Python
+# Python virtual environment
 .venv/
-__pycache__/
-*.pyc
+venv/
 
-# Environment variables
+# Environment variables and secrets
 .env
+.env.*
+!.env.example
 
-# IDE
-.vscode/
-.idea/
+# Python cache
+__pycache__/
+*.py[cod]
 
-# Testing and linting
+# Local database
+db.sqlite3
+
+# Test and coverage output
 .pytest_cache/
-.ruff_cache/
 .coverage
 htmlcov/
 
-# Local files
+# IDE settings
+.vscode/
+.idea/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Logs
 *.log
