@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -41,6 +42,15 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # swagger
+    "drf_spectacular",
+    # Third-party
+    "rest_framework",
+    "django_filters",
+    # for jwt authentication
+    "rest_framework_simplejwt.token_blacklist",
+    # Our application
+    "tasks",
 ]
 
 MIDDLEWARE = [
@@ -128,3 +138,58 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+REST_FRAMEWORK = {
+    "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.URLPathVersioning",
+    "DEFAULT_VERSION": "v1",
+    "ALLOWED_VERSIONS": ["v1", "v2"],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "tasks.exceptions.custom_exception_handler",
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    # Configure throttling in DRF settings
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "5/minute",
+        "user": "8/minute",
+        "tasks": "5/minute",
+        "projects": "5/minute",
+    },
+    "PAGE_SIZE": 5,
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "NERUOS Task Management API",
+    "DESCRIPTION": """
+    REST API built with Django REST Framework and PostgreSQL.
+
+    Features:
+    - JWT authentication with refresh-token rotation
+    - Role-Based Access Control (Viewer, Editor, Manager)
+    - Organization / tenant isolation
+    - Task ownership and object-level permissions
+    - Pagination, filtering, searching and ordering
+    - Input validation and structured error responses
+    - API throttling and idempotent task creation
+
+    Access rules:
+    - Viewer: Read tasks in their organization.
+    - Editor: Create tasks and update their own pending tasks.
+    - Manager: Create, update and delete tasks in their organization.
+
+    All task endpoints require authentication.
+    """,
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+}
