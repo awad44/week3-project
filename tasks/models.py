@@ -33,6 +33,7 @@ class Project(models.Model):
 
 
 class OrganizationMembership(models.Model):
+    # A user can have only one membership record
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

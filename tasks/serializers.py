@@ -18,7 +18,7 @@ class TaskSerializer(serializers.ModelSerializer):
     organization_name = serializers.CharField(
         source="organization.name", read_only=True
     )
-
+    # Accepts a related object's primary key
     project = serializers.PrimaryKeyRelatedField(
         queryset=Project.objects.none(),
         required=True,
@@ -93,6 +93,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
         return attrs
 
+    # Protects organization isolation
     def get_fields(self):
         fields = super().get_fields()
 
