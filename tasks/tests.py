@@ -4,10 +4,11 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from rest_framework.test import APITestCase
 
+from projectapp.models import Project
+
 from .models import (
     Organization,
     OrganizationMembership,
-    Project,
     Task,
 )
 
@@ -190,6 +191,28 @@ class Week3APITests(APITestCase):
             organization=self.beta,
             owner=self.viewer,
             project=self.beta_project,
+        )
+
+    # =========================================
+    # TEST 0 — PROJECT NAME FILTER
+    # =========================================
+    def test_project_name_filter(self):
+        Project.objects.create(
+            name="Internal Roadmap",
+            organization=self.alpha,
+            created_by=self.manager,
+        )
+        self.client.force_authenticate(user=self.manager)
+
+        response = self.client.get(
+            "/api/projects/",
+            {"name_contains": "Alpha Test"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [project["name"] for project in response.data["results"]],
+            ["Alpha Test Project"],
         )
 
     # =========================================

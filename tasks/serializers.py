@@ -1,7 +1,9 @@
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from .models import OrganizationMembership, Project, Task
+from projectapp.models import Project
+
+from .models import OrganizationMembership, Task
 
 
 # API Version 1
@@ -19,6 +21,7 @@ class TaskSerializer(serializers.ModelSerializer):
         source="organization.name", read_only=True
     )
     # Accepts a related object's primary key
+    # lets a client send a project’s ID when creating or updating a task
     project = serializers.PrimaryKeyRelatedField(
         queryset=Project.objects.none(),
         required=True,
@@ -130,37 +133,3 @@ class TaskV2Serializer(TaskSerializer):
     @extend_schema_field(int)
     def get_title_length(self, obj):
         return len(obj.title)
-
-
-class ProjectSerializer(serializers.ModelSerializer):
-
-    organization_id = serializers.IntegerField(read_only=True)
-
-    organization_name = serializers.CharField(
-        source="organization.name", read_only=True
-    )
-
-    created_by_id = serializers.IntegerField(read_only=True)
-
-    created_by_username = serializers.CharField(
-        source="created_by.username", read_only=True
-    )
-
-    class Meta:
-        model = Project
-
-        fields = [
-            "id",
-            "name",
-            "description",
-            "organization_id",
-            "organization_name",
-            "created_by_id",
-            "created_by_username",
-            "created_at",
-        ]
-
-        read_only_fields = [
-            "id",
-            "created_at",
-        ]

@@ -22,16 +22,22 @@ from rest_framework_simplejwt.authentication import (
 )
 
 from .filters import TaskFilter
-from .models import OrganizationMembership, Project, Task, TaskCreateIdempotency
+from .models import OrganizationMembership, Task, TaskCreateIdempotency
 from .pagination import TaskPageNumberPagination
-from .permissions import ProjectRBACPermission, TaskRBACPermission
+from .permissions import TaskRBACPermission
 from .serializers import (
-    ProjectSerializer,
     TaskSerializer,
     TaskV2Serializer,
 )
 
 
+# CRUD routes provided by ModelViewSet; available under /api/ and /api/v1/:
+# GET    /tasks/      -> list()
+# GET    /tasks/{id}/ -> retrieve()
+# POST   /tasks/      -> create()
+# PUT    /tasks/{id}/ -> update()
+# PATCH  /tasks/{id}/ -> partial_update()
+# DELETE /tasks/{id}/ -> destroy()
 @extend_schema_view(
     list=extend_schema(
         summary="List tasks",
@@ -107,6 +113,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         return Task.objects.filter(organization_id=organization_id).order_by("id")
 
+    # POST create() calls this hook to set the organization and owner.
     def perform_create(self, serializer):
 
         organization_id = self.get_organization_id()
@@ -144,6 +151,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             )
         ],
     )
+    # POST create() adds Idempotency-Key handling, then saves through perform_create().
     def create(self, request, *args, **kwargs):
 
         key = request.headers.get("Idempotency-Key")
@@ -195,7 +203,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                     request_payload=payload,
                     response_payload={},
                 )
-
+                # Your custom create() handles task idempotency. perform_create() runs inside the create flow
                 # Uses our existing organization and owner logic.
                 self.perform_create(serializer)
 
@@ -287,82 +295,3 @@ class TaskViewSet(viewsets.ModelViewSet):
             return TaskV2Serializer
 
         return TaskSerializer
-
-
-class ProjectViewSet(viewsets.ModelViewSet):
-
-    queryset = Project.objects.none()
-    serializer_class = ProjectSerializer
-
-    authentication_classes = [
-        JWTAuthentication,
-        SessionAuthentication,
-    ]
-
-    permission_classes = [
-        IsAuthenticated,
-        ProjectRBACPermission,
-    ]
-
-    pagination_class = TaskPageNumberPagination
-
-    throttle_scope = "projects"
-
-    filter_backends = [
-        SearchFilter,
-        OrderingFilter,
-    ]
-
-    search_fields = ["name", "description"]
-
-    ordering_fields = ["id", "name", "created_at"]
-
-    ordering = ["id"]
-
-    def get_organization_id(self):
-
-        if not self.request.user.is_authenticated:
-            return None
-
-        return (
-            OrganizationMembership.objects.filter(user=self.request.user)
-            .values_list("organization_id", flat=True)
-            .first()
-        )
-
-    def get_queryset(self):
-
-        organization_id = self.get_organization_id()
-
-        if organization_id is None:
-            return Project.objects.none()
-
-        return (
-            Project.objects.filter(organization_id=organization_id)
-            .select_related(
-                "organization",
-                "created_by",
-            )
-            .order_by("id")
-        )
-
-    def perform_create(self, serializer):
-
-        organization_id = self.get_organization_id()
-
-        if organization_id is None:
-            raise PermissionDenied("You are not assigned to an organization.")
-
-        serializer.save(
-            organization_id=organization_id,
-            created_by=self.request.user,
-        )
-
-    def perform_destroy(self, instance):
-
-        if instance.tasks.exists():
-            raise ValidationError(
-                {"project": ["Cannot delete a project that contains tasks."]}
-            )
-
-        instance.delete()

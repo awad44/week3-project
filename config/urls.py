@@ -53,11 +53,10 @@ urlpatterns = [
     ),
     # Original API
     path("api/", include("tasks.urls")),
+    path("api/", include("projectapp.urls")),
     # Versioned API
-    path(
-        "api/<str:version>/",
-        include("tasks.urls"),
-    ),
+    path("api/<str:version>/", include("tasks.urls")),
+    path("api/<str:version>/", include("projectapp.urls")),
     # Keep session login for our browsable API
     path(
         "api-auth/",
