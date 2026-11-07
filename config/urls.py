@@ -51,14 +51,28 @@ urlpatterns = [
         TokenBlacklistView.as_view(),
         name="token_blacklist",
     ),
-    # Original API
-    path("api/", include("tasks.urls")),
-    # Versioned API
+    # OpenAPI schema and Swagger UI must precede the version catch-all routes.
     path(
-        "api/<str:version>/",
-        include("tasks.urls"),
+        "api/schema/v1/",
+        SpectacularAPIView.as_view(api_version="v1"),
+        name="schema-v1",
     ),
-    # Keep session login for our browsable API
+    path(
+        "api/docs/",
+        SpectacularSwaggerView.as_view(url_name="schema-v1"),
+        name="swagger-ui",
+    ),
+    path(
+        "api/schema/v2/",
+        SpectacularAPIView.as_view(api_version="v2"),
+        name="schema-v2",
+    ),
+    path(
+        "api/docs/v2/",
+        SpectacularSwaggerView.as_view(url_name="schema-v2"),
+        name="swagger-v2",
+    ),
+    # Keep session login for our browsable API.
     path(
         "api-auth/",
         include(
@@ -66,28 +80,10 @@ urlpatterns = [
             namespace="rest_framework",
         ),
     ),
-    # OpenAPI schema for version 1
-    path(
-        "api/schema/v1/",
-        SpectacularAPIView.as_view(api_version="v1"),
-        name="schema-v1",
-    ),
-    # Swagger UI
-    path(
-        "api/docs/",
-        SpectacularSwaggerView.as_view(url_name="schema-v1"),
-        name="swagger-ui",
-    ),
-    # API v2 schema
-    path(
-        "api/schema/v2/",
-        SpectacularAPIView.as_view(api_version="v2"),
-        name="schema-v2",
-    ),
-    # API v2 Swagger UI
-    path(
-        "api/docs/v2/",
-        SpectacularSwaggerView.as_view(url_name="schema-v2"),
-        name="swagger-v2",
-    ),
+    # Original API
+    path("api/", include("tasks.urls")),
+    path("api/", include("projectapp.urls")),
+    # Versioned API
+    path("api/<str:version>/", include("tasks.urls")),
+    path("api/<str:version>/", include("projectapp.urls")),
 ]

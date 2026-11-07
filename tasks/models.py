@@ -9,30 +9,8 @@ class Organization(models.Model):
         return self.name
 
 
-class Project(models.Model):
-    name = models.CharField(max_length=200)
-
-    description = models.TextField(blank=True)
-
-    organization = models.ForeignKey(
-        Organization,
-        on_delete=models.PROTECT,
-        related_name="projects",
-    )
-
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="created_projects",
-    )
-
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.name
-
-
 class OrganizationMembership(models.Model):
+    # A user can have only one membership record
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -68,13 +46,31 @@ class Task(models.Model):
     )
 
     project = models.ForeignKey(
-        Project,
+        "projectapp.Project",
         on_delete=models.PROTECT,
         related_name="tasks",
     )
 
     def __str__(self):
         return self.title
+
+
+class Comment(models.Model):
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        related_name="comments",
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="task_comments",
+    )
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Comment on {self.task_id} by {self.author_id}"
 
 
 class TaskCreateIdempotency(models.Model):

@@ -137,3 +137,22 @@ Task/Project relationships.
 
 NERUOS Full-Stack Engineering Internship
 Week 3 — REST API Development
+
+## Week 3 API Structure
+
+- `tasks` contains Task, Organization, OrganizationMembership, and task idempotency models and APIs.
+- `projectapp` contains the Project model, serializer, viewset, permissions, and routes.
+- The Project model uses the existing `tasks_project` database table to preserve its data.
+- `config` connects the API routes, JWT authentication, and OpenAPI documentation.
+
+### CRUD behavior
+
+Task creation overrides `create()` to support the optional `Idempotency-Key` header. It calls `perform_create()` to set the task owner and organization. Project creation uses `perform_create()` to set its creator and organization. Project deletion uses `perform_destroy()` to prevent deleting projects that contain tasks. Other CRUD actions use DRF defaults.
+
+Both APIs restrict records by organization. Project permissions use the `projectapp` app label.
+
+### API and quality checks
+
+Task and project routes are available under `/api/` and `/api/v1/`. Swagger documentation is at `/api/docs/`.
+
+Run `python manage.py check`, `python manage.py test tasks`, and `pre-commit run --all-files` before delivery.
