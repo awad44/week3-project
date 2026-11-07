@@ -654,3 +654,135 @@ class Week3APITests(APITestCase):
             self.alpha_project.name,
             "Updated Alpha Project",
         )
+
+    # =========================================
+    # TEST 14 — PROJECT VALIDATION
+    # =========================================
+
+    def test_project_validation_rejects_short_name_and_long_description(self):
+        self.client.force_authenticate(user=self.editor)
+
+        short_name_response = self.client.post(
+            "/api/v1/projects/",
+            {
+                "name": "AB",
+                "description": "Too short",
+            },
+            format="json",
+        )
+        long_description_response = self.client.post(
+            "/api/v1/projects/",
+            {
+                "name": "Valid Project",
+                "description": "x" * 1001,
+            },
+            format="json",
+        )
+
+        self.assertEqual(short_name_response.status_code, 400)
+        self.assertEqual(long_description_response.status_code, 400)
+        self.assertFalse(Project.objects.filter(name="Valid Project").exists())
+
+    # =========================================
+    # TEST 15 — PROJECT IDEMPOTENCY
+    # =========================================
+
+    def test_project_idempotency_replays_and_rejects_changed_payload(self):
+        self.client.force_authenticate(user=self.editor)
+
+        payload = {
+            "name": "Idempotent Alpha Project",
+            "description": "Retry should not create another project",
+        }
+        key = "project-idempotency-key-001"
+
+        first = self.client.post(
+            "/api/v1/projects/",
+            payload,
+            format="json",
+            HTTP_IDEMPOTENCY_KEY=key,
+        )
+        replay = self.client.post(
+            "/api/v1/projects/",
+            payload,
+            format="json",
+            HTTP_IDEMPOTENCY_KEY=key,
+        )
+        changed_payload = {
+            **payload,
+            "name": "Changed Idempotent Project",
+        }
+        conflict = self.client.post(
+            "/api/v1/projects/",
+            changed_payload,
+            format="json",
+            HTTP_IDEMPOTENCY_KEY=key,
+        )
+
+        self.assertEqual(first.status_code, 201, first.data)
+        self.assertEqual(replay.status_code, 201, replay.data)
+        self.assertEqual(first.data["id"], replay.data["id"])
+        self.assertEqual(replay.headers.get("Idempotency-Replayed"), "true")
+        self.assertEqual(conflict.status_code, 409, conflict.data)
+        self.assertEqual(
+            conflict.data["error"]["code"],
+            "idempotency_conflict",
+        )
+        self.assertEqual(
+            Project.objects.filter(
+                name__in=[
+                    "Idempotent Alpha Project",
+                    "Changed Idempotent Project",
+                ]
+            ).count(),
+            1,
+        )
+
+    # =========================================
+    # TEST 16 — PROJECT API VERSION 2
+    # =========================================
+
+    def test_project_v2_includes_task_count_and_v1_does_not(self):
+        self.client.force_authenticate(user=self.manager)
+
+        v1_response = self.client.get("/api/v1/projects/")
+        v2_response = self.client.get("/api/v2/projects/")
+
+        self.assertEqual(v1_response.status_code, 200, v1_response.data)
+        self.assertEqual(v2_response.status_code, 200, v2_response.data)
+        self.assertNotIn("task_count", v1_response.data["results"][0])
+
+        alpha_project_v2 = next(
+            project
+            for project in v2_response.data["results"]
+            if project["id"] == self.alpha_project.id
+        )
+        self.assertEqual(alpha_project_v2["task_count"], 2)
+
+        created = self.client.post(
+            "/api/v2/projects/",
+            {
+                "name": "New V2 Project",
+                "description": "No tasks yet",
+            },
+            format="json",
+        )
+        self.assertEqual(created.status_code, 201, created.data)
+        self.assertEqual(created.data["task_count"], 0)
+
+    # =========================================
+    # TEST 17 — TASK AND PROJECT THROTTLE SCOPES
+    # =========================================
+
+    def test_task_and_project_scopes_enforce_their_rate_limits(self):
+        self.client.force_authenticate(user=self.manager)
+
+        for label, path in [
+            ("tasks", "/api/v1/tasks/"),
+            ("projects", "/api/v1/projects/"),
+        ]:
+            cache.clear()
+            statuses = [self.client.get(path).status_code for _ in range(6)]
+
+            with self.subTest(scope=label):
+                self.assertEqual(statuses, [200, 200, 200, 200, 200, 429])

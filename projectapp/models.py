@@ -24,3 +24,28 @@ class Project(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class ProjectCreateIdempotency(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="project_create_idempotency_records",
+    )
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="project_create_idempotency_records",
+    )
+    key = models.CharField(max_length=128)
+    request_payload = models.JSONField()
+    response_payload = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "organization", "key"],
+                name="unique_project_create_idempotency",
+            ),
+        ]
